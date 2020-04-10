@@ -44,13 +44,10 @@ def valid_proof(last_hash, proof):
     IE:  last_hash: ...AE912345, new hash 12345E88...
     """
 
-    guess = f"{last_hash}{proof}".encode()
+    guess = f"{proof}".encode()
     guess_hash = hashlib.sha256(guess).hexdigest()
 
-    if guess_hash[:5] == last_hash[-5:]:
-        print(f"{last_hash}\n{guess_hash}")
-        print(f"{guess_hash[:5]}:{last_hash[-5:]}")
-        return True
+    return guess_hash[:5] == last_hash[-5:]
 
 
 if __name__ == "__main__":
@@ -76,18 +73,13 @@ if __name__ == "__main__":
         # Get the last proof from the server
         r = requests.get(url=node + "/last_proof")
         data = r.json()
-        print(data)
 
         new_proof = proof_of_work(data.get("proof"))
 
         post_data = {"proof": new_proof, "id": id}
 
-        print(post_data)
-
         r = requests.post(url=node + "/mine", json=post_data)
         data = r.json()
-
-        print(data)
 
         if data.get("message") == "New Block Forged":
             coins_mined += 1
