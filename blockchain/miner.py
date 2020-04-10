@@ -1,5 +1,6 @@
 import hashlib
 import requests
+import json
 
 import sys
 
@@ -23,8 +24,12 @@ def proof_of_work(last_proof):
     start = timer()
 
     print("Searching for next proof")
-    proof = 0
-    #  TODO: Your code here
+    proof = None
+
+    last_hash = hashlib.sha256(str(last_proof).encode()).hexdigest()
+
+    while not valid_proof(last_hash, proof):
+        proof = random.random()
 
     print("Proof found: " + str(proof) + " in " + str(timer() - start))
     return proof
@@ -39,11 +44,13 @@ def valid_proof(last_hash, proof):
     IE:  last_hash: ...AE912345, new hash 12345E88...
     """
 
-    # TODO: Your code here!
-    pass
+    guess = str(proof).encode()
+    guess_hash = hashlib.sha256(guess).hexdigest()
+
+    return guess_hash[:5] == last_hash[-5:]
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     # What node are we interacting with?
     if len(sys.argv) > 1:
         node = sys.argv[1]
@@ -58,23 +65,36 @@ if __name__ == '__main__':
     print("ID is", id)
     f.close()
 
-    if id == 'NONAME\n':
+    if id == "NONAME\n":
         print("ERROR: You must change your name in `my_id.txt`!")
         exit()
+
     # Run forever until interrupted
     while True:
-        # Get the last proof from the server
-        r = requests.get(url=node + "/last_proof")
-        data = r.json()
-        new_proof = proof_of_work(data.get('proof'))
 
-        post_data = {"proof": new_proof,
-                     "id": id}
+        try:
+            # Get the last proof from the server
+            r = requests.get(url=node + "/last_proof")
+            data = r.json()
+        except:
+            print("Server returned non-JSON response")
 
-        r = requests.post(url=node + "/mine", json=post_data)
-        data = r.json()
-        if data.get('message') == 'New Block Forged':
-            coins_mined += 1
-            print("Total coins mined: " + str(coins_mined))
-        else:
-            print(data.get('message'))
+        if data:
+            # Find new proof
+            new_proof = proof_of_work(data.get("proof"))
+
+            post_data = {"proof": new_proof, "id": id}
+
+            # Validate at server
+            try:
+                r = requests.post(url=node + "/mine", json=post_data)
+                data = r.json()
+            except:
+                print("Server returned non-JSON response")
+
+            # Check results
+            if data.get("message") == "New Block Forged":
+                coins_mined += 1
+                print("Total coins mined: " + str(coins_mined))
+            else:
+                print(data.get("message"))
